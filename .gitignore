@@ -52,7 +52,6 @@ runs/
 
 # Jupyter Notebook
 .ipynb_checkpoints
-*.ipynb
 
 # Unit test / coverage reports
 htmlcov/
