@@ -5,19 +5,30 @@ mit dem [GTSDB (German Traffic Sign Detection Benchmark)](https://benchmark.ini.
 
 ## Ergebnisse
 
-Modell: YOLOv8n, 50 Epochen (Early Stopping bei Epoch 30), Training auf CPU (Apple M1 Pro).
+### YOLOv8s – Kaggle T4 GPU, 100 Epochen *(empfohlen)*
 
 | Metrik     | Wert  |
-|------------|-------|
+|------------|---------|
+| mAP50      | 0.534 |
+| mAP50-95   | 0.437 |
+| Precision  | 0.607 |
+| Recall     | 0.521 |
+
+Trainiert mit `kaggle_train.ipynb` (YOLOv8s, GPU T4, 100 Epochen, Copy-Paste-Augmentierung).
+
+### YOLOv8n – Lokal CPU, 50 Epochen *(Baseline)*
+
+| Metrik     | Wert  |
+|------------|---------|
 | mAP50      | 0.354 |
 | mAP50-95   | 0.277 |
 | Precision  | 0.453 |
 | Recall     | 0.331 |
 
-Die Ergebnisse spiegeln eine bekannte Einschränkung wider: Der GTSDB-Trainingsset enthält nur ~600
-Szenenbilder für 43 Klassen. Viele seltene Klassen haben 1–3 Validierungsbeispiele, was statistisch
-belastbare Metriken unmöglich macht. `augment_copypaste.py` gleicht dieses Ungleichgewicht vor dem
-nächsten Trainingslauf aus.
+Trainiert mit `train.py` auf Apple M1 Pro, Early Stopping bei Epoch 30.
+
+> Der GTSDB-Trainingsset enthält nur ~600 Szenenbilder für 43 Klassen. Viele seltene Klassen
+> haben 1–3 Validierungsbeispiele. `augment_copypaste.py` gleicht dieses Ungleichgewicht aus.
 
 ## Datensatz
 
@@ -72,6 +83,16 @@ python train.py --model yolov8s --epochs 100
 
 Gewichte landen in `runs/detect/verkehrszeichen_v2/weights/best.pt` (v1 bei `train.py`).
 
+### 2b. Training auf Kaggle (kostenlose GPU)
+
+Falls kein leistungsfähiger PC verfügbar ist:
+
+1. `kaggle_train.ipynb` auf [kaggle.com](https://kaggle.com) importieren
+2. Dataset `german-traffic-sign-detection-benchmark-gtsdb` (safabouguezzi) hinzufügen
+3. Accelerator **GPU T4 x2** aktivieren
+4. **Run All** – dauert ca. 15–30 Minuten
+5. Gewichte unter *Output* → `best_weights.zip` herunterladen
+
 ### 3. Trainingsverläufe visualisieren
 
 ```bash
@@ -120,6 +141,7 @@ Verkehrschild Erkennung/
 ├── augment_copypaste.py ← Klassen-Balancierung via Copy-Paste
 ├── train.py             ← Basis Fine-Tuning (yolov8n)
 ├── train_improved.py    ← Empfohlenes Training (yolov8s, mehr Augmentierung)
+├── kaggle_train.ipynb   ← Kaggle-Notebook (kostenlose GPU)
 ├── predict.py           ← Evaluierung & Videoverarbeitung
 ├── plot_results.py      ← Trainingsverläufe visualisieren
 ├── webcam_demo.py       ← Echtzeit-Demo
