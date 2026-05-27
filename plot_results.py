@@ -1,3 +1,4 @@
+import argparse
 from pathlib import Path
 
 import pandas as pd
@@ -5,12 +6,25 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 
-ROOT = Path(__file__).resolve().parent
-RESULTS_CSV = ROOT / "runs" / "detect" / "verkehrszeichen_v1" / "results.csv"
-OUTPUT_HTML = ROOT / "runs" / "detect" / "verkehrszeichen_v1" / "results_plot.html"
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser()
+    p.add_argument("--run", default="verkehrszeichen_v1",
+                   help="Name des Trainings-Runs (Unterordner in runs/detect/)")
+    return p.parse_args()
 
 
 def main() -> None:
+    args = parse_args()
+    ROOT = Path(__file__).resolve().parent
+    run_dir = ROOT / "runs" / "detect" / args.run
+    RESULTS_CSV = run_dir / "results.csv"
+    OUTPUT_HTML = run_dir / "results_plot.html"
+
+    if not RESULTS_CSV.exists():
+        print(f"[FEHLER] Keine results.csv gefunden: {RESULTS_CSV}")
+        print("Erst trainieren: python train.py  oder  python train_improved.py")
+        return
+
     df = pd.read_csv(RESULTS_CSV)
 
     fig = make_subplots(
@@ -110,7 +124,7 @@ def main() -> None:
 
     OUTPUT_HTML.parent.mkdir(parents=True, exist_ok=True)
     fig.write_html(OUTPUT_HTML, include_plotlyjs="cdn")
-    print(f"Wrote {OUTPUT_HTML}")
+    print(f"Gespeichert: {OUTPUT_HTML}")
 
 
 if __name__ == "__main__":

@@ -5,14 +5,19 @@ mit dem [GTSDB (German Traffic Sign Detection Benchmark)](https://benchmark.ini.
 
 ## Ergebnisse
 
+Modell: YOLOv8n, 50 Epochen (Early Stopping bei Epoch 30), Training auf CPU (Apple M1 Pro).
+
 | Metrik     | Wert  |
 |------------|-------|
-| mAP50      | –     |
-| mAP50-95   | –     |
-| Precision  | –     |
-| Recall     | –     |
+| mAP50      | 0.354 |
+| mAP50-95   | 0.277 |
+| Precision  | 0.453 |
+| Recall     | 0.331 |
 
-*(Wird nach dem Training ergänzt)*
+Die Ergebnisse spiegeln eine bekannte Einschränkung wider: Der GTSDB-Trainingsset enthält nur ~600
+Szenenbilder für 43 Klassen. Viele seltene Klassen haben 1–3 Validierungsbeispiele, was statistisch
+belastbare Metriken unmöglich macht. `augment_copypaste.py` gleicht dieses Ungleichgewicht vor dem
+nächsten Trainingslauf aus.
 
 ## Datensatz
 
@@ -35,7 +40,7 @@ python setup.py               # Prüft Abhängigkeiten & GPU
 ### 1. Datensatz vorbereiten
 
 Datensatz von https://benchmark.ini.rub.de/gtsdb_news.html herunterladen,
-dann entpacken nach `data/raw/` (PPM-Bilder + `gt.txt`).
+dann entpacken nach `archive(2)/TrainIJCNN2013/TrainIJCNN2013/` (PPM-Bilder + `gt.txt`).
 
 ```bash
 python convert_dataset.py
@@ -43,17 +48,40 @@ python convert_dataset.py
 
 Konvertiert PPM → JPEG und Annotationen → YOLO-Format mit 80/20 Train/Val-Split.
 
+### 1b. Datensatz-Augmentierung (empfohlen)
+
+Viele Klassen haben im GTSDB nur wenige Beispiele. Dieser Schritt klebt GTSRB-Crops auf
+Szenenbilder, bis jede Klasse mindestens 150 Annotationen hat:
+
+```bash
+python augment_copypaste.py
+```
+
+Überspringen, wenn nur der Basis-Workflow getestet werden soll.
+
 ### 2. Training
 
 ```bash
-python train.py                      # Standard: yolov8n, 50 Epochen
-python train.py --model yolov8s      # Größeres Modell
-python train.py --epochs 100         # Mehr Epochen
+# Empfohlen: größeres Modell, optimierte Augmentierung
+python train_improved.py
+
+# Alternativ: schnelles Basis-Training (yolov8n, 50 Epochen)
+python train.py
+python train.py --model yolov8s --epochs 100
 ```
 
-Gewichte landen in `runs/detect/verkehrszeichen_v1/weights/best.pt`.
+Gewichte landen in `runs/detect/verkehrszeichen_v2/weights/best.pt` (v1 bei `train.py`).
 
-### 3. Evaluierung
+### 3. Trainingsverläufe visualisieren
+
+```bash
+python plot_results.py                          # Standard: verkehrszeichen_v1
+python plot_results.py --run verkehrszeichen_v2 # Anderer Lauf
+```
+
+Öffnet eine interaktive HTML-Datei mit Loss-, Precision-, Recall- und mAP-Kurven.
+
+### 4. Evaluierung
 
 ```bash
 python predict.py --weights runs/detect/verkehrszeichen_v1/weights/best.pt --val
@@ -61,7 +89,7 @@ python predict.py --weights best.pt --image testbild.jpg
 python predict.py --weights best.pt --video testvideo.mp4
 ```
 
-### 4. Webcam-Demo
+### 5. Webcam-Demo
 
 ```bash
 python webcam_demo.py --weights runs/detect/verkehrszeichen_v1/weights/best.pt
@@ -78,18 +106,22 @@ python webcam_demo.py --weights runs/detect/verkehrszeichen_v1/weights/best.pt
 
 ```
 Verkehrschild Erkennung/
+├── archive(2)/
+│   └── TrainIJCNN2013/TrainIJCNN2013/  ← GTSDB entpackt hier hin
 ├── data/
-│   ├── raw/             ← GTSDB entpackt hier hin
 │   ├── images/
-│   │   ├── train/
+│   │   ├── train/       ← JPEGs (nach convert_dataset.py)
 │   │   └── val/
 │   └── labels/
-│       ├── train/
+│       ├── train/       ← YOLO-Annotationen (.txt)
 │       └── val/
 ├── dataset.yaml         ← YOLO Datensatz-Konfiguration
 ├── convert_dataset.py   ← GTSDB → YOLO Konvertierung
-├── train.py             ← Fine-Tuning
+├── augment_copypaste.py ← Klassen-Balancierung via Copy-Paste
+├── train.py             ← Basis Fine-Tuning (yolov8n)
+├── train_improved.py    ← Empfohlenes Training (yolov8s, mehr Augmentierung)
 ├── predict.py           ← Evaluierung & Videoverarbeitung
+├── plot_results.py      ← Trainingsverläufe visualisieren
 ├── webcam_demo.py       ← Echtzeit-Demo
 ├── setup.py             ← Umgebungs-Check
 └── requirements.txt

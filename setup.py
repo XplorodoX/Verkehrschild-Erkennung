@@ -58,20 +58,20 @@ def check_gpu() -> None:
 
 
 def check_dataset() -> None:
-    raw = Path("data/raw")
-    ppms = list(raw.glob("*.ppm"))
-    gt   = raw / "gt.txt"
+    archive = Path("archive(2)/TrainIJCNN2013/TrainIJCNN2013")
+    ppms = list(archive.glob("*.ppm")) if archive.exists() else []
+    gt   = archive / "gt.txt"
 
     print(f"\nDatensatz-Status:")
     if ppms and gt.exists():
-        print(f"  {len(ppms)} PPM-Bilder gefunden")
+        print(f"  {len(ppms)} PPM-Bilder gefunden in {archive}")
         print(f"  gt.txt gefunden")
         print(f"  → Bereit für Konvertierung: python convert_dataset.py")
     else:
         print("  Noch kein GTSDB-Datensatz gefunden.")
         print("  Datensatz laden unter:")
         print("  https://benchmark.ini.rub.de/gtsdb_news.html")
-        print("  Dann entpacken nach: data/raw/")
+        print("  Dann entpacken nach: archive(2)/TrainIJCNN2013/TrainIJCNN2013/")
 
 
 def main() -> None:
@@ -81,11 +81,13 @@ def main() -> None:
     check_dataset()
     print("\nSetup abgeschlossen!")
     print("\nWorkflow:")
-    print("  1. Datensatz nach data/raw/ entpacken")
+    print("  1. Datensatz nach archive(2)/TrainIJCNN2013/TrainIJCNN2013/ entpacken")
     print("  2. python convert_dataset.py")
-    print("  3. python train.py")
-    print("  4. python predict.py --weights runs/detect/verkehrszeichen_v1/weights/best.pt --val")
-    print("  5. python webcam_demo.py --weights runs/detect/verkehrszeichen_v1/weights/best.pt")
+    print("  3. python augment_copypaste.py        # optional, balanciert seltene Klassen")
+    print("  4. python train_improved.py           # empfohlen; oder: python train.py")
+    print("  5. python plot_results.py             # Trainingsverläufe visualisieren")
+    print("  6. python predict.py --weights runs/detect/verkehrszeichen_v2/weights/best.pt --val")
+    print("  7. python webcam_demo.py --weights runs/detect/verkehrszeichen_v2/weights/best.pt")
 
 
 if __name__ == "__main__":
