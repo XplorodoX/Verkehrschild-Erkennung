@@ -1,8 +1,8 @@
 """
-Verbessertes Training: yolov8s, 100 Epochen, optimierte Augmentierung für Verkehrszeichen.
+Verbessertes Training: yolov8m, 100 Epochen, optimierte Augmentierung für Verkehrszeichen.
 
 Wichtigste Unterschiede zu train.py:
-  - Größeres Modell (yolov8s: ~11M Parameter statt 3M)
+  - Größeres Modell (Standard: yolov8m ~26M Parameter)
   - copy_paste=0.3  (YOLOs eingebaute Copy-Paste-Aug.)
   - Kein horizontales/vertikales Spiegeln (Schilder sind nicht symmetrisch)
   - Mehr Farb- und Beleuchtungsvariation (Wetter, Tageszeit)
@@ -11,8 +11,9 @@ Wichtigste Unterschiede zu train.py:
 
 Aufruf:
     python train_improved.py
-    python train_improved.py --model yolov8m   # noch größer
+    python train_improved.py --model yolov8l   # noch größer
     python train_improved.py --resume          # nach Unterbrechung fortsetzen
+    python train_improved.py --tune            # Hyperparameter-Autotuning vor dem Training (benötigt ray[tune])
 """
 
 import argparse
@@ -22,15 +23,17 @@ from ultralytics import YOLO
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser()
-    p.add_argument("--model",   default="yolov8s",  help="yolov8s | yolov8m | yolov8l")
+    p.add_argument("--model",   default="yolov8m",  help="yolov8m | yolov8l | yolov8x")
     p.add_argument("--epochs",  type=int, default=100)
     p.add_argument("--batch",   type=int, default=8,
-                   help="Kleiner Batch wegen großem Modell auf MPS")
+                   help="Kleiner Batch wegen großem Modell auf MPS/CPU")
     p.add_argument("--imgsz",   type=int, default=640)
     p.add_argument("--name",    default="verkehrszeichen_v2")
     p.add_argument("--patience",type=int, default=20)
     p.add_argument("--resume",  action="store_true",
                    help="Letztes Checkpoint fortsetzen")
+    p.add_argument("--tune",    action="store_true",
+                   help="Hyperparameter-Autotuning vor dem Training (benötigt ray[tune])")
     return p.parse_args()
 
 
@@ -59,6 +62,17 @@ def main() -> None:
     print(f"  Bildgröße     : {args.imgsz}")
     print(f"  Name          : {args.name}\n")
 
+    if args.tune:
+        print("Starte Hyperparameter-Autotuning (50 Iterationen) ...")
+        model.tune(
+            data=str(dataset_yaml),
+            epochs=30,
+            iterations=50,
+            imgsz=args.imgsz,
+            batch=args.batch,
+        )
+        print("Tuning abgeschlossen – starte Training mit besten Parametern.\n")
+
     model.train(
         data=str(dataset_yaml),
         epochs=args.epochs,
@@ -69,39 +83,41 @@ def main() -> None:
         resume=args.resume,
 
         # --- Lernrate ---
-        lr0=0.001,          # niedrig für stabiles Fine-Tuning
-        lrf=0.01,           # Endlernrate = lr0 * lrf
+        lr0=0.001,
+        lrf=0.01,
         warmup_epochs=3,
 
         # --- Augmentierung speziell für Schilder ---
-        flipud=0.0,         # Schilder nicht auf den Kopf stellen
-        fliplr=0.0,         # Richtungsschilder nicht spiegeln
+        flipud=0.0,
+        fliplr=0.0,
 
-        # Farbe & Beleuchtung (Wetter, Tageszeit, Verschmutzung)
-        hsv_h=0.02,         # Farbton-Variation
-        hsv_s=0.8,          # Sättigung
-        hsv_v=0.5,          # Helligkeit
+        # Farbe & Beleuchtung
+        hsv_h=0.02,
+        hsv_s=0.8,
+        hsv_v=0.5,
 
         # Geometrie
-        degrees=12.0,       # leichte Rotation (Wind, schräge Kameras)
+        degrees=12.0,
         translate=0.1,
-        scale=0.6,          # Zoom-Variation (Schilder in verschiedenen Entfernungen)
-        shear=3.0,          # Perspektive
+        scale=0.6,
+        shear=3.0,
         perspective=0.0003,
 
         # Mosaic & Copy-Paste
         mosaic=1.0,
-        copy_paste=0.3,     # kopiert Objekte aus anderen Bildern → hilft bei seltenen Klassen
+        copy_paste=0.3,
 
         # Sonstiges
-        mixup=0.1,          # mischt zwei Bilder leicht
-        close_mosaic=10,    # letzten 10 Epochen ohne Mosaic für saubere Konvergenz
+        mixup=0.1,
+        close_mosaic=10,
     )
 
     best = Path(f"runs/detect/{args.name}/weights/best.pt")
     print(f"\nTraining abgeschlossen! Beste Gewichte: {best}")
-    print(f"\nEvaluierung: python predict.py --weights {best} --val")
-    print(f"Webcam-Demo: python webcam_demo.py --weights {best}")
+    print(f"\nEvaluierung       : python predict.py --weights {best} --val")
+    print(f"Per-Klassen-Analyse: python predict.py --weights {best} --per-class")
+    print(f"ONNX exportieren  : python predict.py --weights {best} --export")
+    print(f"Webcam-Demo       : python webcam_demo.py --weights {best}")
 
 
 if __name__ == "__main__":

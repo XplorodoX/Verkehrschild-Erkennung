@@ -5,10 +5,10 @@ mit dem [GTSDB (German Traffic Sign Detection Benchmark)](https://benchmark.ini.
 
 ## Ergebnisse
 
-### YOLOv8s – Kaggle T4 GPU, 100 Epochen *(empfohlen)*
+### YOLOv8s – Kaggle T4 GPU, 100 Epochen *(bisherig)*
 
 | Metrik     | Wert  |
-|------------|---------|
+|------------|-------|
 | mAP50      | 0.534 |
 | mAP50-95   | 0.437 |
 | Precision  | 0.607 |
@@ -19,7 +19,7 @@ Trainiert mit `kaggle_train.ipynb` (YOLOv8s, GPU T4, 100 Epochen, Copy-Paste-Aug
 ### YOLOv8n – Lokal CPU, 50 Epochen *(Baseline)*
 
 | Metrik     | Wert  |
-|------------|---------|
+|------------|-------|
 | mAP50      | 0.354 |
 | mAP50-95   | 0.277 |
 | Precision  | 0.453 |
@@ -73,15 +73,20 @@ python augment_copypaste.py
 ### 2. Training
 
 ```bash
-# Empfohlen: größeres Modell, optimierte Augmentierung
+# Empfohlen: yolov8m, optimierte Augmentierung
 python train_improved.py
 
-# Alternativ: schnelles Basis-Training (yolov8n, 50 Epochen)
+# Mit Hyperparameter-Autotuning (langsamer, aber bessere Ergebnisse)
+python train_improved.py --tune
+
+# Noch größeres Modell
+python train_improved.py --model yolov8l
+
+# Schnelles Basis-Training
 python train.py
-python train.py --model yolov8s --epochs 100
 ```
 
-Gewichte landen in `runs/detect/verkehrszeichen_v2/weights/best.pt` (v1 bei `train.py`).
+Gewichte landen in `runs/detect/verkehrszeichen_v2/weights/best.pt`.
 
 ### 2b. Training auf Kaggle (kostenlose GPU)
 
@@ -90,7 +95,7 @@ Falls kein leistungsfähiger PC verfügbar ist:
 1. `kaggle_train.ipynb` auf [kaggle.com](https://kaggle.com) importieren
 2. Dataset `german-traffic-sign-detection-benchmark-gtsdb` (safabouguezzi) hinzufügen
 3. Accelerator **GPU T4 x2** aktivieren
-4. **Run All** – dauert ca. 15–30 Minuten
+4. **Run All** – dauert ca. 20–40 Minuten
 5. Gewichte unter *Output* → `best_weights.zip` herunterladen
 
 ### 3. Trainingsverläufe visualisieren
@@ -105,7 +110,9 @@ python plot_results.py --run verkehrszeichen_v2 # Anderer Lauf
 ### 4. Evaluierung
 
 ```bash
-python predict.py --weights runs/detect/verkehrszeichen_v1/weights/best.pt --val
+python predict.py --weights best.pt --val          # Gesamtmetriken
+python predict.py --weights best.pt --per-class    # AP50 pro Klasse (zeigt schwache Klassen)
+python predict.py --weights best.pt --export       # ONNX-Export für schnellere Inferenz
 python predict.py --weights best.pt --image testbild.jpg
 python predict.py --weights best.pt --video testvideo.mp4
 ```
@@ -113,7 +120,9 @@ python predict.py --weights best.pt --video testvideo.mp4
 ### 5. Webcam-Demo
 
 ```bash
-python webcam_demo.py --weights runs/detect/verkehrszeichen_v1/weights/best.pt
+python webcam_demo.py --weights runs/detect/verkehrszeichen_v2/weights/best.pt
+# oder mit ONNX (schneller):
+python webcam_demo.py --weights best.onnx
 ```
 
 | Taste | Aktion              |
@@ -140,9 +149,9 @@ Verkehrschild Erkennung/
 ├── convert_dataset.py   ← GTSDB → YOLO Konvertierung
 ├── augment_copypaste.py ← Klassen-Balancierung via Copy-Paste
 ├── train.py             ← Basis Fine-Tuning (yolov8n)
-├── train_improved.py    ← Empfohlenes Training (yolov8s, mehr Augmentierung)
+├── train_improved.py    ← Empfohlenes Training (yolov8m, Autotuning)
 ├── kaggle_train.ipynb   ← Kaggle-Notebook (kostenlose GPU)
-├── predict.py           ← Evaluierung & Videoverarbeitung
+├── predict.py           ← Evaluierung, Per-Klassen-Analyse, ONNX-Export
 ├── plot_results.py      ← Trainingsverläufe visualisieren
 ├── webcam_demo.py       ← Echtzeit-Demo
 ├── setup.py             ← Umgebungs-Check
